@@ -75,3 +75,19 @@ if user_input:
     asp = extract_aspects(user_input)
     st.write(f"**Detected Emotion:** {emo}")
     st.write(f"**Detected Aspects:** {asp}")
+
+# Add this inside your app.py to satisfy the "Measurement" requirement 
+with st.expander("📊 Technical Performance Metrics"):
+    if dataset_choice == "Twitter Social":
+        # Let's see how often our emotion model aligns with the 'target' labels
+        # target 0 = Negative, target 4 = Positive
+        st.write("Model Accuracy vs Ground Truth Labels")
+        
+        # Example calculation logic
+        correct_predictions = df[df['emotion'].isin(['sadness', 'anger']) & (df['target'] == 0)].shape[0]
+        total_negatives = df[df['target'] == 0].shape[0]
+        
+        if total_negatives > 0:
+            accuracy = (correct_predictions / total_negatives) * 100
+            st.metric("Negative Sentiment Recall", f"{accuracy:.2f}%")
+            st.caption("This measures how well the model identifies actual negative tweets.")
