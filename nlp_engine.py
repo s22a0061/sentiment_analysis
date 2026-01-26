@@ -2,8 +2,7 @@ import re
 import nltk
 import spacy
 import streamlit as st
-import subprocess
-import sys
+import en_core_web_sm  # We import the model directly as a library
 from transformers import pipeline
 
 @st.cache_resource
@@ -18,13 +17,9 @@ def load_models():
     emotion_model = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
     sentiment_model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
-    # 3. SpaCy - The "Force Fix" Method
-    # If the model isn't found, we use a subprocess to install it inside the running app
-    if not spacy.util.is_package("en_core_web_sm"):
-        st.warning("Downloading language model... this takes 1 minute.")
-        subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
-    
-    nlp = spacy.load("en_core_web_sm")
+    # 3. SpaCy - Direct Load
+    # We don't use spacy.load("en_core_web_sm"). We use the library directly.
+    nlp = en_core_web_sm.load()
 
     return emotion_model, sentiment_model, nlp
 
@@ -40,10 +35,12 @@ def clean_text(text):
 
 def get_emotions(text):
     if not text: return "neutral"
+    # Safety truncation
     return emotion_classifier(text[:512])[0]["label"].lower()
 
 def get_sarcasm(text):
     if not text: return "Normal"
+    # Safety truncation
     sentiment = sentiment_classifier(text[:512])[0]["label"]
     emotion = get_emotions(text)
     if sentiment == "POSITIVE" and emotion in ["anger", "sadness", "disgust"]:
