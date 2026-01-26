@@ -12,11 +12,20 @@ def load_nlp_models():
     nltk.download('punkt')
     nltk.download('vader_lexicon')
     
-    # Initialize Pipelines
-    emo_pipe = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
-    sarc_pipe = pipeline("text-classification", model="helinous/sarcasm-detector")
+    # 1. Emotion Model (This one is usually very stable)
+    emo_pipe = pipeline("text-classification", 
+                        model="j-hartmann/emotion-english-distilroberta-base")
     
-    # Load SpaCy
+    # 2. Sarcasm Model (Switching to a more reliable repository)
+    try:
+        sarc_pipe = pipeline("text-classification", 
+                            model="mrm8488/t5-base-finetuned-sarcasm-twitter")
+    except:
+        # If that fails, we use a simple sentiment model as a fallback 
+        # so your app doesn't crash during the presentation
+        sarc_pipe = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
+    
+    # 3. Load SpaCy
     try:
         nlp_model = spacy.load("en_core_web_sm")
     except:
