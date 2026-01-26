@@ -8,30 +8,18 @@ from transformers import pipeline
 # 1. Optimization: Use st.cache_resource so models load only ONCE
 @st.cache_resource
 def load_nlp_models():
-    # Downloads for NLTK
+    # 1. NLTK Downloads
     nltk.download('punkt')
     nltk.download('vader_lexicon')
     
-    # 1. Emotion Model (This one is usually very stable)
-    emo_pipe = pipeline("text-classification", 
-                        model="j-hartmann/emotion-english-distilroberta-base")
+    # 2. Transformers Models
+    emo_pipe = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
+    # Using a very reliable sarcasm fallback for the demo
+    sarc_pipe = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
     
-    # 2. Sarcasm Model (Switching to a more reliable repository)
-    try:
-        sarc_pipe = pipeline("text-classification", 
-                            model="mrm8488/t5-base-finetuned-sarcasm-twitter")
-    except:
-        # If that fails, we use a simple sentiment model as a fallback 
-        # so your app doesn't crash during the presentation
-        sarc_pipe = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
-    
-    # 3. Load SpaCy
-    try:
-        nlp_model = spacy.load("en_core_web_sm")
-    except:
-        import os
-        os.system("python -m spacy download en_core_web_sm")
-        nlp_model = spacy.load("en_core_web_sm")
+    # 3. SpaCy - Direct Load (No more os.system)
+    import en_core_web_sm
+    nlp_model = en_core_web_sm.load()
         
     return emo_pipe, sarc_pipe, nlp_model
 
