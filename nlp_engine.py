@@ -9,15 +9,16 @@ from transformers import pipeline
 def load_models():
     nltk.download("punkt")
 
+    # Emotion model (STABLE on Streamlit Cloud)
     emotion_model = pipeline(
         "text-classification",
-        model="j-hartmann/emotion-english-distilroberta-base",
-        return_all_scores=False
+        model="j-hartmann/emotion-english-distilroberta-base"
     )
 
-    sarcasm_model = pipeline(
-        "text-classification",
-        model="cardiffnlp/twitter-roberta-base-sarcasm"
+    # Sentiment model (USED for sarcasm proxy)
+    sentiment_model = pipeline(
+        "sentiment-analysis",
+        model="distilbert-base-uncased-finetuned-sst-2-english"
     )
 
     try:
@@ -27,10 +28,10 @@ def load_models():
         subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
         nlp = spacy.load("en_core_web_sm")
 
-    return emotion_model, sarcasm_model, nlp
+    return emotion_model, sentiment_model, nlp
 
 
-emotion_classifier, sarcasm_classifier, nlp = load_models()
+emotion_classifier, sentiment_classifier, nlp = load_models()
 
 # ---------------- Utilities ----------------
 def clean_text(text):
@@ -49,10 +50,19 @@ def get_emotions(text):
 
 
 def get_sarcasm(text):
+    """
+    Cloud-safe sarcasm proxy:
+    Positive sentiment + negative emotion → Sarcastic
+    """
     if not text:
         return "Normal"
-    result = sarcasm_classifier(text[:512])
-    return "Sarcastic" if result[0]["label"] == "sarcasm" else "Normal"
+
+    sentiment = sentiment_classifier(text[:512])[0]["label"]
+    emotion = get_emotions(text)
+
+    if sentiment == "POSITIVE" and emotion in ["anger", "sadness", "disgust"]:
+        return "Sarcastic"
+    return "Normal"
 
 
 def extract_aspects(text):
