@@ -4,6 +4,9 @@ import nltk
 import spacy
 from transformers import pipeline
 
+nltk.download('punkt')
+nltk.download('vader_lexicon')
+
 # Load SpaCy for Aspect Extraction
 try:
     nlp = spacy.load("en_core_web_sm")
