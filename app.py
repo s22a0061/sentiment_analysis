@@ -48,7 +48,8 @@ with tab2:
     st.subheader("Deep Emotion Analysis")
     # Apply emotion detection (this might take a second)
     with st.spinner('Detecting emotions...'):
-        df['emotion'] = df['clean_text'].apply(get_emotions)
+        df['emotion'] = compute_emotions(df['clean_text'])
+
     
     emo_counts = df['emotion'].value_counts().reset_index()
     fig_emo = px.bar(emo_counts, x='emotion', y='count', color='emotion', title="Dominant Emotions Found")
@@ -60,7 +61,7 @@ with tab3:
     for text in df['clean_text']:
         all_aspects.extend(extract_aspects(text))
     
-    aspect_df = pd.DataFrame(all_aspects, columns=['Feature', 'Sentiment'])
+    aspect_df = pd.DataFrame(all_aspects, columns=['Feature', 'Descriptor'])
     top_aspects = aspect_df['Feature'].value_counts().head(10).reset_index()
     
     fig_aspect = px.bar(top_aspects, x='Feature', y='count', title="Top 10 Mentioned Features")
