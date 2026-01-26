@@ -39,6 +39,10 @@ def clean_text(text):
     text = re.sub(r'@\w+', '', text)
     return text.strip()
 
+@st.cache_data
+def compute_emotions(texts):
+    return texts.apply(get_emotions)
+
 def get_emotions(text):
     """Meets 'Advanced Feature: Emotion Detection' requirement."""
     if not text: return "Neutral"
