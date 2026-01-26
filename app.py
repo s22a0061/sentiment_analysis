@@ -13,14 +13,16 @@ st.sidebar.header("Settings")
 dataset_choice = st.sidebar.selectbox("Select Dataset", ["Amazon Products", "Twitter Social"])
 
 # Load Data
-if dataset_choice == "Amazon Products":
-    df = pd.read_csv("7817_1.csv")
-    text_col = "reviews.text"
-    date_col = "reviews.date"
-else:
-    df = pd.read_csv("twitter_sentiment_small.csv")
-    text_col = "text"
-    date_col = "date"
+try:
+    if dataset_choice == "Amazon Products":
+        df = pd.read_csv("data/7817_1.csv") 
+        text_col, date_col = "reviews.text", "reviews.date"
+    else:
+        df = pd.read_csv("data/twitter_sentiment_small.csv")
+        text_col, date_col = "text", "date"
+except FileNotFoundError:
+    st.error("CSV files not found in the 'data' folder. Please check your GitHub structure.")
+    st.stop()
 
 # Sample data for speed in demo
 df = df.sample(min(500, len(df))) 
