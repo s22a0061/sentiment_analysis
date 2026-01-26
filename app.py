@@ -73,8 +73,13 @@ user_input = st.text_input("Enter a sentence to analyze:")
 if user_input:
     emo = get_emotions(user_input)
     asp = extract_aspects(user_input)
-    st.write(f"**Detected Emotion:** {emo}")
-    st.write(f"**Detected Aspects:** {asp}")
+    sarc = get_sarcasm(user_input)
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Emotion", emo)
+    col2.metric("Style", sarc) # Shows "Sarcastic" or "Normal"
+    col3.write("**Detected Aspects:**")
+    col3.write(asp)
 
 # Add this inside your app.py to satisfy the "Measurement" requirement 
 with st.expander("📊 Technical Performance Metrics"):
