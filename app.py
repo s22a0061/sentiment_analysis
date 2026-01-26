@@ -15,11 +15,12 @@ dataset_choice = st.sidebar.selectbox("Select Dataset", ["Amazon Products", "Twi
 # Load Data
 try:
     if dataset_choice == "Amazon Products":
-        df = pd.read_csv("data/7817_1.csv") 
-        text_col, date_col = "reviews.text", "reviews.date"
+        df = pd.read_csv("data/7817_1.csv")
+        text_col = "reviews.text"
     else:
         df = pd.read_csv("data/twitter_sentiment_small.csv")
-        text_col, date_col = "text", "date"
+        text_col = "text"
+
 except FileNotFoundError:
     st.error("CSV files not found in the 'data' folder. Please check your GitHub structure.")
     st.stop()
