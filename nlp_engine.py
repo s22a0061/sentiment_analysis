@@ -9,24 +9,20 @@ from transformers import pipeline
 def load_models():
     nltk.download("punkt")
 
-    # Emotion model (STABLE on Streamlit Cloud)
+    # Emotion model (cloud stable)
     emotion_model = pipeline(
         "text-classification",
         model="j-hartmann/emotion-english-distilroberta-base"
     )
 
-    # Sentiment model (USED for sarcasm proxy)
+    # Sentiment model (used for sarcasm proxy)
     sentiment_model = pipeline(
         "sentiment-analysis",
         model="distilbert-base-uncased-finetuned-sst-2-english"
     )
 
-    try:
-        nlp = spacy.load("en_core_web_sm")
-    except OSError:
-        import subprocess, sys
-        subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
-        nlp = spacy.load("en_core_web_sm")
+    # spaCy model (pre-installed via requirements.txt)
+    nlp = spacy.load("en_core_web_sm")
 
     return emotion_model, sentiment_model, nlp
 
@@ -51,8 +47,8 @@ def get_emotions(text):
 
 def get_sarcasm(text):
     """
-    Cloud-safe sarcasm proxy:
-    Positive sentiment + negative emotion → Sarcastic
+    Sarcasm proxy:
+    Positive sentiment + negative emotion = sarcasm
     """
     if not text:
         return "Normal"
