@@ -5,98 +5,131 @@ from nlp_engine import clean_text, get_emotions, extract_aspects, get_sarcasm
 
 st.set_page_config(page_title="NLP Sentiment Dashboard", layout="wide")
 
-st.title("📊 Multi-Domain Sentiment & Emotion Intelligence")
-st.markdown("Comparing **Product Reviews** (Amazon) vs. **Social Media** (Twitter)")
+st.title("Multi-Domain Sentiment & Emotion Intelligence")
+st.markdown("Comparing **Product Reviews (Amazon)** vs **Social Media (Twitter)**")
 
-# --- Sidebar ---
-st.sidebar.header("Settings")
-dataset_choice = st.sidebar.selectbox("Select Dataset", ["Amazon Products", "Twitter Social"])
+# ---------------- Sidebar ----------------
+st.sidebar.header("Dataset Selection")
+dataset_choice = st.sidebar.selectbox(
+    "Choose Dataset",
+    ["Amazon Products", "Twitter Social"]
+)
 
-# Load Data
-try:
-    if dataset_choice == "Amazon Products":
-        df = pd.read_csv("data/7817_1.csv")
-        text_col = "reviews.text"
-    else:
-        df = pd.read_csv("data/twitter_sentiment_small.csv")
-        text_col = "text"
+# ---------------- Load Data ----------------
+if dataset_choice == "Amazon Products":
+    df = pd.read_csv("data/7817_1.csv")
+    text_col = "reviews.text"
+else:
+    df = pd.read_csv("data/twitter_sentiment_small.csv")
+    text_col = "text"
 
-except FileNotFoundError:
-    st.error("CSV files not found in the 'data' folder. Please check your GitHub structure.")
-    st.stop()
+# Sample for performance
+df = df.sample(min(500, len(df)), random_state=42)
 
-# Sample data for speed in demo
-df = df.sample(min(500, len(df))) 
+# ---------------- Preprocessing ----------------
+df["clean_text"] = df[text_col].apply(clean_text)
 
-# --- Process Data ---
-st.write(f"Analyzing {len(df)} samples...")
-df['clean_text'] = df[text_col].apply(clean_text)
+@st.cache_data
+def compute_emotions(texts):
+    return texts.apply(get_emotions)
 
-# --- Layout Tabs ---
-tab1, tab2, tab3 = st.tabs(["📈 Sentiment Trends", "🎭 Emotion & Sarcasm", "🔍 Aspect Explorer"])
+df["emotion"] = compute_emotions(df["clean_text"])
 
+# ---------------- Tabs ----------------
+tab1, tab2, tab3 = st.tabs(
+    ["Sentiment Overview", "Emotion & Sarcasm", "Aspect Explorer"]
+)
+
+# ---------------- TAB 1 ----------------
 with tab1:
     st.subheader("Sentiment Distribution")
-    # If Amazon, we use ratings. If Twitter, we use the 'target' column.
+
     if dataset_choice == "Amazon Products":
-        fig = px.histogram(df, x="reviews.rating", title="Rating Distribution (1-5 Stars)", color_discrete_sequence=['#FF4B4B'])
+        fig = px.histogram(
+            df,
+            x="reviews.rating",
+            title="Amazon Rating Distribution (1–5 Stars)"
+        )
     else:
-        fig = px.pie(df, names="target", title="Twitter Polarity (0=Neg, 4=Pos)")
+        fig = px.pie(
+            df,
+            names="target",
+            title="Twitter Polarity (0 = Negative, 4 = Positive)"
+        )
+
     st.plotly_chart(fig, use_container_width=True)
 
+# ---------------- TAB 2 ----------------
 with tab2:
-    st.subheader("Deep Emotion Analysis")
-    # Apply emotion detection (this might take a second)
-    with st.spinner('Detecting emotions...'):
-        df['emotion'] = compute_emotions(df['clean_text'])
+    st.subheader("Emotion & Sarcasm Analysis")
 
-    
-    emo_counts = df['emotion'].value_counts().reset_index()
-    fig_emo = px.bar(emo_counts, x='emotion', y='count', color='emotion', title="Dominant Emotions Found")
+    emo_counts = df["emotion"].value_counts().reset_index()
+    emo_counts.columns = ["Emotion", "Count"]
+
+    fig_emo = px.bar(
+        emo_counts,
+        x="Emotion",
+        y="Count",
+        title="Detected Emotions"
+    )
     st.plotly_chart(fig_emo, use_container_width=True)
 
+# ---------------- TAB 3 ----------------
 with tab3:
-    st.subheader("Aspect-Based Analysis (Service/Product Features)")
-    all_aspects = []
-    for text in df['clean_text']:
-        all_aspects.extend(extract_aspects(text))
-    
-    aspect_df = pd.DataFrame(all_aspects, columns=['Feature', 'Descriptor'])
-    top_aspects = aspect_df['Feature'].value_counts().head(10).reset_index()
-    
-    fig_aspect = px.bar(top_aspects, x='Feature', y='count', title="Top 10 Mentioned Features")
-    st.plotly_chart(fig_aspect, use_container_width=True)
-    
-    st.write("Recent Feature Mentions:")
-    st.dataframe(aspect_df.head(10))
+    st.subheader("Aspect-Based Feature Extraction")
 
-# --- Single Text Tester ---
+    all_aspects = []
+    for text in df["clean_text"]:
+        all_aspects.extend(extract_aspects(text))
+
+    if all_aspects:
+        aspect_df = pd.DataFrame(all_aspects, columns=["Feature", "Descriptor"])
+        top_aspects = (
+            aspect_df["Feature"]
+            .value_counts()
+            .head(10)
+            .reset_index()
+        )
+        top_aspects.columns = ["Feature", "Mentions"]
+
+        fig_aspect = px.bar(
+            top_aspects,
+            x="Feature",
+            y="Mentions",
+            title="Top 10 Mentioned Features"
+        )
+        st.plotly_chart(fig_aspect, use_container_width=True)
+
+        st.dataframe(aspect_df.head(10))
+    else:
+        st.info("No aspects detected in sample.")
+
+# ---------------- Single Text Tester ----------------
 st.divider()
-st.subheader("Test Your Own Text")
-user_input = st.text_input("Enter a sentence to analyze:")
+st.subheader("Test a Sentence")
+
+user_input = st.text_input("Enter text:")
+
 if user_input:
     emo = get_emotions(user_input)
-    asp = extract_aspects(user_input)
     sarc = get_sarcasm(user_input)
-    
+    asp = extract_aspects(user_input)
+
     col1, col2, col3 = st.columns(3)
     col1.metric("Emotion", emo)
-    col2.metric("Style", sarc) # Shows "Sarcastic" or "Normal"
-    col3.write("**Detected Aspects:**")
+    col2.metric("Style", sarc)
+    col3.write("Detected Aspects")
     col3.write(asp)
 
-# Add this inside your app.py to satisfy the "Measurement" requirement 
-with st.expander("📊 Technical Performance Metrics"):
+# ---------------- Measurement Section ----------------
+with st.expander("Technical Evaluation (Twitter Only)"):
     if dataset_choice == "Twitter Social":
-        # Let's see how often our emotion model aligns with the 'target' labels
-        # target 0 = Negative, target 4 = Positive
-        st.write("Model Accuracy vs Ground Truth Labels")
-        
-        # Example calculation logic
-        correct_predictions = df[df['emotion'].isin(['sadness', 'anger']) & (df['target'] == 0)].shape[0]
-        total_negatives = df[df['target'] == 0].shape[0]
-        
-        if total_negatives > 0:
-            accuracy = (correct_predictions / total_negatives) * 100
-            st.metric("Negative Sentiment Recall", f"{accuracy:.2f}%")
-            st.caption("This measures how well the model identifies actual negative tweets.")
+        negatives = df[df["target"] == 0]
+        aligned = negatives[negatives["emotion"].isin(["anger", "sadness"])]
+
+        if len(negatives) > 0:
+            alignment = (len(aligned) / len(negatives)) * 100
+            st.metric("Negative Emotion Alignment", f"{alignment:.2f}%")
+            st.caption(
+                "Measures alignment between negative emotions and negative sentiment labels."
+            )
