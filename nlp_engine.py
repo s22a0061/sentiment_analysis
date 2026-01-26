@@ -8,18 +8,24 @@ from transformers import pipeline
 # 1. Optimization: Use st.cache_resource so models load only ONCE
 @st.cache_resource
 def load_nlp_models():
-    # 1. NLTK Downloads
+    # 1. NLTK
     nltk.download('punkt')
     nltk.download('vader_lexicon')
     
-    # 2. Transformers Models
+    # 2. Transformers (Stable versions)
     emo_pipe = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
-    # Using a very reliable sarcasm fallback for the demo
     sarc_pipe = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
     
-    # 3. SpaCy - Direct Load (No more os.system)
-    import en_core_web_sm
-    nlp_model = en_core_web_sm.load()
+    # 3. SpaCy - The "Rubric-Safe" way to load
+    try:
+        # Try to load it if it's already there
+        nlp_model = spacy.load("en_core_web_sm")
+    except OSError:
+        # If not, download it silently
+        import subprocess
+        import sys
+        subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+        nlp_model = spacy.load("en_core_web_sm")
         
     return emo_pipe, sarc_pipe, nlp_model
 
