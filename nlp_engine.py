@@ -14,7 +14,7 @@ def load_nlp_models():
     
     # 2. Transformers (Stable versions)
     emo_pipe = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
-    sarc_pipe = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
+    sarc_pipe = pipeline("text-classification", model="cardiffnlp/twitter-roberta-base-sarcasm")
     
     # 3. SpaCy - The "Rubric-Safe" way to load
     try:
@@ -46,11 +46,10 @@ def get_emotions(text):
     return result[0]['label']
 
 def get_sarcasm(text):
-    """Meets 'Optimization/Advanced Feature' requirement."""
-    if not text: return "Normal"
+    if not text:
+        return "Normal"
     result = sarcasm_classifier(text[:512])
-    # The helinous/sarcasm-detector uses 'LABEL_1' for sarcastic
-    return "Sarcastic" if result[0]['label'] == 'LABEL_1' else "Normal"
+    return "Sarcastic" if result[0]['label'] == 'sarcasm' else "Normal"
 
 def extract_aspects(text):
     """Meets 'Topic Scope' for extracting user interests/features."""
