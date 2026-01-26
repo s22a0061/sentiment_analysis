@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from nlp_engine import clean_text, get_emotions, extract_aspects
+from nlp_engine import clean_text, get_emotions, extract_aspects, get_sarcasm
 
 st.set_page_config(page_title="NLP Sentiment Dashboard", layout="wide")
 
