@@ -43,7 +43,7 @@ def get_emotions(text):
     """Meets 'Advanced Feature: Emotion Detection' requirement."""
     if not text: return "Neutral"
     result = emotion_classifier(text[:512])
-    return result[0]['label']
+    return result[0]['label'].lower()
 
 def get_sarcasm(text):
     if not text:
