@@ -17,14 +17,21 @@ st.set_page_config(
 # ================== LOAD DATA ==================
 @st.cache_data
 def load_data():
+    # 1. Load Twitter Data
     twitter_df = pd.read_csv(
         "https://raw.githubusercontent.com/nurulaina02/melis-nlp/main/twitter_cleaned.csv"
     )
+    twitter_df = twitter_df.dropna(subset=['sentiment'])
+    
+    # 2. Load Reviews Data
     reviews_df = pd.read_csv(
         "https://raw.githubusercontent.com/nurulaina02/melis-nlp/main/reviews_cleaned.csv"
     )
-    return pd.concat([twitter_df, reviews_df], ignore_index=True)
+    reviews_df = reviews_df.dropna(subset=['sentiment'])
 
+    # 3. Combine
+    full_df = pd.concat([twitter_df, reviews_df], ignore_index=True)
+    return full_df
 
 df = load_data()
 
@@ -37,6 +44,8 @@ df = df[df["sentiment"].isin(["positive", "neutral", "negative"])]
 # ================== SIDEBAR ==================
 st.sidebar.title("⚙️ Dashboard Controls")
 search_text = st.sidebar.text_input("🔍 Search text")
+st.sidebar.write("--- DEBUG INFO ---")
+st.sidebar.write(df['sentiment'].value_counts())
 
 # ================== TITLE ==================
 st.title("📊 Sentiment Analysis Dashboard")
@@ -67,9 +76,10 @@ col3.metric("Neutral", (df["sentiment"] == "neutral").sum())
 col4.metric("Negative", (df["sentiment"] == "negative").sum())
 
 # ================== MODEL TRAINING ==================
+# Change this line in your model definition
 model = Pipeline([
     ("tfidf", TfidfVectorizer(max_features=5000)),
-    ("clf", LogisticRegression())
+    ("clf", LogisticRegression(class_weight='balanced', max_iter=1000)) 
 ])
 
 X = df["clean_text"]
