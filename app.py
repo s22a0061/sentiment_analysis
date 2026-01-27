@@ -1,122 +1,140 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import os
-from nlp_engine import clean_text, get_emotions, extract_aspects, get_sarcasm
 
-st.set_page_config(page_title="NLP Sentiment Dashboard", layout="wide")
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import accuracy_score, classification_report
 
-st.title("📊 Multi-Domain Sentiment & Emotion Intelligence")
-st.markdown("Comparing **Product Reviews (Amazon)** vs **Social Media (Twitter)**")
-
-# ---------------- Sidebar ----------------
-st.sidebar.header("Dataset Selection")
-dataset_choice = st.sidebar.selectbox(
-    "Choose Dataset",
-    ["Amazon Products", "Twitter Social"]
+# ================== PAGE CONFIG ==================
+st.set_page_config(
+    page_title="Sentiment Analysis Dashboard",
+    page_icon="📊",
+    layout="wide"
 )
 
-# ---------------- Load Data ----------------
-# This logic checks if the file actually exists before crashing
-try:
-    if dataset_choice == "Amazon Products":
-        file_path = "data/7817_1.csv"
-        if os.path.exists(file_path):
-            df = pd.read_csv(file_path)
-            text_col = "reviews.text"
-        else:
-            st.error(f"File not found: {file_path}. Is it in the 'data' folder?")
-            st.stop()
-    else:
-        file_path = "data/twitter_sentiment_small.csv"
-        if os.path.exists(file_path):
-            df = pd.read_csv(file_path)
-            text_col = "text"
-        else:
-            st.error(f"File not found: {file_path}. Is it in the 'data' folder?")
-            st.stop()
-except Exception as e:
-    st.error(f"Error loading data: {e}")
-    st.stop()
-
-# Sample for performance (Important for Free Cloud Tier)
-df = df.sample(min(500, len(df)), random_state=42)
-
-# ---------------- Preprocessing ----------------
-st.write(f"Processing {len(df)} samples...")
-df["clean_text"] = df[text_col].apply(clean_text)
-
-# We compute emotions here so we can use it in charts later
-# Using a spinner so the user knows something is happening
-with st.spinner("Analyzing emotions..."):
-    df["emotion"] = df["clean_text"].apply(get_emotions)
-
-# ---------------- Tabs ----------------
-tab1, tab2, tab3 = st.tabs(
-    ["Sentiment Overview", "Emotion & Sarcasm", "Aspect Explorer"]
-)
-
-# ---------------- TAB 1 ----------------
-with tab1:
-    st.subheader("Sentiment Distribution")
-    if dataset_choice == "Amazon Products":
-        fig = px.histogram(
-            df, x="reviews.rating", 
-            title="Amazon Rating Distribution (1–5 Stars)",
-            color_discrete_sequence=['#FF4B4B']
-        )
-    else:
-        fig = px.pie(
-            df, names="target", 
-            title="Twitter Polarity (0 = Negative, 4 = Positive)"
-        )
-    st.plotly_chart(fig, use_container_width=True)
-
-# ---------------- TAB 2 ----------------
-with tab2:
-    st.subheader("Emotion & Sarcasm Analysis")
-    emo_counts = df["emotion"].value_counts().reset_index()
-    emo_counts.columns = ["Emotion", "Count"]
-    
-    fig_emo = px.bar(
-        emo_counts, x="Emotion", y="Count", 
-        title="Detected Emotions", color="Emotion"
+# ================== LOAD DATA ==================
+@st.cache_data
+def load_data():
+    twitter_df = pd.read_csv(
+        "https://raw.githubusercontent.com/nurulaina02/melis-nlp/main/twitter_cleaned.csv"
     )
-    st.plotly_chart(fig_emo, use_container_width=True)
+    reviews_df = pd.read_csv(
+        "https://raw.githubusercontent.com/nurulaina02/melis-nlp/main/reviews_cleaned.csv"
+    )
+    return pd.concat([twitter_df, reviews_df], ignore_index=True)
 
-# ---------------- TAB 3 ----------------
-with tab3:
-    st.subheader("Aspect-Based Feature Extraction")
-    all_aspects = []
-    for text in df["clean_text"]:
-        all_aspects.extend(extract_aspects(text))
 
-    if all_aspects:
-        aspect_df = pd.DataFrame(all_aspects, columns=["Feature", "Descriptor"])
-        top_aspects = aspect_df["Feature"].value_counts().head(10).reset_index()
-        top_aspects.columns = ["Feature", "Mentions"]
+df = load_data()
 
-        fig_aspect = px.bar(
-            top_aspects, x="Feature", y="Mentions",
-            title="Top 10 Mentioned Features"
-        )
-        st.plotly_chart(fig_aspect, use_container_width=True)
-        st.dataframe(aspect_df.head(10))
-    else:
-        st.info("No aspects detected in this sample.")
+# ================== DATA CLEANING (CRITICAL FIX) ==================
+df = df.dropna(subset=["clean_text", "sentiment"])
+df["clean_text"] = df["clean_text"].astype(str)
+df["sentiment"] = df["sentiment"].astype(str).str.lower()
+df = df[df["sentiment"].isin(["positive", "neutral", "negative"])]
 
-# ---------------- Single Text Tester ----------------
-st.divider()
-st.subheader("Test a Sentence")
-user_input = st.text_input("Enter text (e.g., 'I loved the phone but the battery is dead'):")
+# ================== SIDEBAR ==================
+st.sidebar.title("⚙️ Dashboard Controls")
+search_text = st.sidebar.text_input("🔍 Search text")
+
+# ================== TITLE ==================
+st.title("📊 Sentiment Analysis Dashboard")
+st.caption("Interactive NLP Dashboard using TF-IDF and Logistic Regression")
+
+# ================== CLASS BALANCE ==================
+st.subheader("⚖️ Class Balance Distribution")
+
+class_counts = df["sentiment"].value_counts().reset_index()
+class_counts.columns = ["Sentiment", "Count"]
+
+fig_balance = px.bar(
+    class_counts,
+    x="Sentiment",
+    y="Count",
+    color="Sentiment",
+    title="Sentiment Class Distribution"
+)
+
+st.plotly_chart(fig_balance, use_container_width=True)
+
+# ================== KPI METRICS ==================
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Total Records", len(df))
+col2.metric("Positive", (df["sentiment"] == "positive").sum())
+col3.metric("Neutral", (df["sentiment"] == "neutral").sum())
+col4.metric("Negative", (df["sentiment"] == "negative").sum())
+
+# ================== MODEL TRAINING ==================
+model = Pipeline([
+    ("tfidf", TfidfVectorizer(max_features=5000)),
+    ("clf", LogisticRegression())
+])
+
+X = df["clean_text"]
+y = df["sentiment"]
+
+model.fit(X, y)
+predictions = model.predict(X)
+
+accuracy = accuracy_score(y, predictions)
+
+# ================== MODEL PERFORMANCE ==================
+st.subheader("✅ Model Performance")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Accuracy", f"{accuracy:.3f}")
+
+with col2:
+    st.info("Model: TF-IDF + Logistic Regression")
+
+# ================== SENTIMENT DISTRIBUTION ==================
+st.subheader("📊 Sentiment Distribution")
+
+sentiment_counts = df["sentiment"].value_counts().reset_index()
+sentiment_counts.columns = ["Sentiment", "Count"]
+
+fig_sentiment = px.pie(
+    sentiment_counts,
+    names="Sentiment",
+    values="Count",
+    hole=0.4,
+    title="Overall Sentiment Breakdown"
+)
+
+st.plotly_chart(fig_sentiment, use_container_width=True)
+
+# ================== DATA EXPLORER ==================
+st.subheader("🔎 Explore Text Data")
+
+if search_text:
+    filtered_df = df[
+        df["clean_text"].str.contains(search_text, case=False, na=False)
+    ]
+    st.dataframe(filtered_df, use_container_width=True)
+else:
+    st.dataframe(df.head(50), use_container_width=True)
+
+# ================== CLASSIFICATION REPORT (TABLE) ==================
+st.subheader("📑 Classification Report")
+
+report_dict = classification_report(
+    y,
+    predictions,
+    output_dict=True
+)
+
+report_df = pd.DataFrame(report_dict).transpose().round(3)
+
+st.dataframe(report_df, use_container_width=True)
+
+# ================== LIVE PREDICTION ==================
+st.subheader("✍️ Live Sentiment Prediction")
+
+user_input = st.text_area("Enter a sentence to analyze sentiment:")
 
 if user_input:
-    emo = get_emotions(user_input)
-    sarc = get_sarcasm(user_input)
-    asp = extract_aspects(user_input)
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Emotion", emo)
-    col2.metric("Sarcasm Check", sarc)
-    col3.write("**Detected Aspects:**")
-    col3.write(asp)
+    prediction = model.predict([user_input])[0]
+    st.success(f"Predicted Sentiment: **{prediction.upper()}**")
