@@ -80,7 +80,6 @@ if model is None:
 # --- SIDEBAR ---
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2103/2103633.png", width=100)
 st.sidebar.title("NLP Project Control")
-st.sidebar.markdown("**Student Name:** [Your Name]")
 st.sidebar.markdown("**Project:** Multi-Domain Sentiment Analysis")
 menu = st.sidebar.radio("Navigate", ["Project Overview", "Data Analysis", "Model Performance", "Live Demo"])
 
