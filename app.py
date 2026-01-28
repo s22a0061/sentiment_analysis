@@ -49,7 +49,7 @@ def build_model_pipeline():
         # Build Pipeline: TF-IDF (Text to Numbers) -> Logistic Regression (Classification)
         # We use class_weight='balanced' to help with the Amazon imbalance
         model = Pipeline([
-            ('tfidf', TfidfVectorizer(max_features=5000, stop_words='english')),
+            ("tfidf", TfidfVectorizer(max_features=5000, ngram_range=(1,2))),
             ('clf', LogisticRegression(class_weight='balanced', max_iter=1000))
         ])
         
